@@ -1,10 +1,16 @@
-use crate::movement::*;
+use crate::{
+    collision::Collider, damage::Damage, health::Health, movement::*, schedule::InGameSet,
+    state::GameState,
+};
 use bevy::prelude::*;
 
-const PLAYER_MAX_SPEED: f32 = 500.0;
-const PLAYER_BOOST: f32 = 10000.0;
+const PLAYER_MAX_SPEED: u32 = 100;
+const PLAYER_BOOST: f32 = 20000.0;
 const PLAYER_SIZE: Vec2 = Vec2::new(70.0, 70.0);
 const PLAYER_RESISTANCE: f32 = 0.5;
+const PLAYER_RADIUS: f32 = 20.0;
+const PLAYER_DAMAGE: f32 = 35.0;
+const PLAYER_HEALT: f32 = 1000.0;
 
 #[derive(Component, Debug)]
 pub struct Player;
@@ -13,8 +19,13 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_player)
-            .add_systems(PreUpdate, movement_player_control);
+        app.add_systems(PostStartup, spawn_player)
+            .add_systems(OnEnter(GameState::GameOver), spawn_player)
+            .add_systems(
+                PreUpdate,
+                movement_player_control.chain().in_set(InGameSet::UserInput),
+            )
+            .add_systems(Update, player_destroyed.in_set(InGameSet::EntityUpdates));
     }
 }
 
@@ -28,12 +39,13 @@ fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
             texture: asset_server.load("YOU.png"),
             ..default()
         },
-        Velocity {
-            value: Vec3::default(),
+        MovingObjectBundle {
+            velocity: Velocity::new(Vec3::default(), PLAYER_MAX_SPEED),
+            acceleration: Acceleration::new(Vec3::default()),
+            collider: Collider::new(PLAYER_RADIUS),
         },
-        Acceleration {
-            value: Vec3::default(),
-        },
+        Health::new(PLAYER_HEALT),
+        Damage::new(PLAYER_DAMAGE),
         Player,
     ));
 }
@@ -63,12 +75,8 @@ fn movement_player_control(
     if keyboard_input.pressed(KeyCode::KeyA) {
         boost.x += -1.0;
     }
-    if boost.length() != 0.0 {
-        let c: f32 = PLAYER_BOOST / (boost.x * boost.x + boost.y * boost.y).sqrt();
-        boost.x *= c * time.delta_seconds();
-        boost.y *= c * time.delta_seconds();
-    }
-    acceleration.value = boost;
+
+    acceleration.value = boost.normalize_or_zero() * PLAYER_BOOST * time.delta_seconds();
 
     //player resistance
     if velocity.value.length() > 0.0 && acceleration.value.length() == 0.0 {
@@ -78,17 +86,6 @@ fn movement_player_control(
         if velocity.value.length() < 5.0 {
             velocity.value *= 0.0;
         }
-    }
-
-    //player resistance for max speed
-    if velocity.value.length() >= PLAYER_MAX_SPEED {
-        let projection_length: f32 = (velocity.value.x * acceleration.value.x
-            + velocity.value.y * acceleration.value.y)
-            / (velocity.value.x * velocity.value.x + velocity.value.y * velocity.value.y).sqrt();
-        let c_for_max = projection_length
-            / (velocity.value.x * velocity.value.x + velocity.value.y * velocity.value.y).sqrt();
-        let resist_acceliration = -velocity.value * c_for_max * time.delta_seconds();
-        velocity.value += resist_acceliration;
     }
 
     // player angle
@@ -103,7 +100,7 @@ fn movement_player_control(
         transform.rotation = Quat::from_rotation_z(0.0);
     }
 
-    //change texture
+    //change texture todo
     if velocity.value.x == 0.0 && velocity.value.y == 0.0 {
         commands.entity(entity).insert(SpriteBundle {
             sprite: Sprite {
@@ -124,5 +121,11 @@ fn movement_player_control(
             texture: asset_server.load("NOU.png"),
             ..default()
         });
+    }
+}
+
+fn player_destroyed(mut next_state: ResMut<NextState<GameState>>, query: Query<(), With<Player>>) {
+    if query.get_single().is_err() {
+        next_state.set(GameState::GameOver);
     }
 }

@@ -2,15 +2,19 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use crate::{
-    movement::{Acceleration, Velocity},
-    player::Player,
+    collision::Collider, damage::Damage, health::Health, movement::*, player::Player,
+    schedule::InGameSet,
 };
 
 const SPAWN_TIME_SECONDS: f32 = 1.0;
 const ENEMY_SIZE: Vec2 = Vec2::new(50.0, 50.0);
 const MAX_COUNT_ENEMY: u32 = 10;
-const ENEMY_SPEED: f32 = 500.0;
+const ENEMY_MAX_SPEED: u32 = 500;
 const SPAWN_RANGE: f32 = 500.0;
+const ENEMY_BOOST: f32 = 1000.0;
+const ENEMY_RADIUS: f32 = 20.0;
+const ENEMY_GAMAGE: f32 = 30.0;
+const ENEMY_HEALTH: f32 = 100.0;
 
 #[derive(Component, Debug)]
 pub struct Enemy;
@@ -27,8 +31,10 @@ impl Plugin for EnemyPlugin {
         app.insert_resource(SpawnTimer {
             timer: Timer::from_seconds(SPAWN_TIME_SECONDS, TimerMode::Repeating),
         })
-        .add_systems(Update, spawn_enemy)
-        .add_systems(PostUpdate, movement_enemy);
+        .add_systems(
+            Update,
+            (spawn_enemy, movement_enemy).in_set(InGameSet::EntityUpdates),
+        );
     }
 }
 
@@ -36,6 +42,7 @@ fn spawn_enemy(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut spawn_timer: ResMut<SpawnTimer>,
+    player: Query<&Transform, With<Player>>,
     time: Res<Time>,
 ) {
     spawn_timer.timer.tick(time.delta());
@@ -43,13 +50,17 @@ fn spawn_enemy(
         return;
     }
 
+    let Ok(transform_player) = player.get_single() else {
+        return;
+    };
+
     let mut rng = rand::thread_rng();
 
     let number: f64 = rng.gen_range(0.0..6.283185);
 
     let translation = Vec3::new(
-        (number.cos() as f32) * SPAWN_RANGE,
-        (number.sin() as f32) * SPAWN_RANGE,
+        (number.cos() as f32) * SPAWN_RANGE + transform_player.translation.x,
+        (number.sin() as f32) * SPAWN_RANGE + transform_player.translation.y,
         0.0,
     );
 
@@ -63,33 +74,28 @@ fn spawn_enemy(
             texture: asset_server.load("skeleton-skull.png"),
             ..default()
         },
-        Velocity {
-            value: Vec3::default(),
+        MovingObjectBundle {
+            velocity: Velocity::new(Vec3::default(), ENEMY_MAX_SPEED),
+            acceleration: Acceleration::new(Vec3::default()),
+            collider: Collider::new(ENEMY_RADIUS),
         },
-        Acceleration {
-            value: Vec3::default(),
-        },
+        Health::new(ENEMY_HEALTH),
+        Damage::new(ENEMY_GAMAGE),
         Enemy,
     ));
 }
 
 fn movement_enemy(
-    mut query_enemy: Query<(&Transform, &mut Velocity), With<Enemy>>,
+    mut query_enemy: Query<(&Transform, &mut Acceleration), With<Enemy>>,
     player: Query<&Transform, With<Player>>,
     time: Res<Time>,
 ) {
     let Ok(transform_player) = player.get_single() else {
         return;
     };
-    for (transform, mut velocity) in query_enemy.iter_mut() {
+    for (transform, mut acceleration) in query_enemy.iter_mut() {
         let translation_player = transform_player.translation - transform.translation;
-        if translation_player.length() != 0.0 {
-            let c: f32 = ENEMY_SPEED
-                / (translation_player.x * translation_player.x
-                    + translation_player.y * translation_player.y)
-                    .sqrt();
-            let movement = Vec3::new(translation_player.x, translation_player.y, 0.0);
-            velocity.value = movement * c * time.delta_seconds();
-        }
+        let movement = Vec3::new(translation_player.x, translation_player.y, 0.0);
+        acceleration.value = movement.normalize_or_zero() * ENEMY_BOOST * time.delta_seconds();
     }
 }
