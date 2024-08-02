@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{health::Health, schedule::InGameSet, state::GameState};
+use crate::{enemy::CountEnemy, health::Health, schedule::InGameSet, state::GameState};
 
 const DESPAWN_DISTANCE: f32 = 1000000.0;
 
@@ -30,17 +30,27 @@ fn despawn_far_away_entities(
     }
 }
 
-fn despawn_dead_entities(mut commands: Commands, query: Query<(Entity, &Health)>) {
+fn despawn_dead_entities(
+    mut commands: Commands,
+    query: Query<(Entity, &Health)>,
+    mut count_enemy: ResMut<CountEnemy>,
+) {
     for (entity, health) in query.iter() {
         // Entity doesn't have any health.
         if health.value <= 0.0 {
             commands.entity(entity).despawn_recursive();
+            count_enemy.count -= 1;
         }
     }
 }
 
-fn despawn_all_entities(mut commands: Commands, query: Query<Entity, With<Health>>) {
+fn despawn_all_entities(
+    mut commands: Commands,
+    query: Query<Entity, With<Health>>,
+    mut count_enemy: ResMut<CountEnemy>,
+) {
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();
+        count_enemy.count = 0;
     }
 }

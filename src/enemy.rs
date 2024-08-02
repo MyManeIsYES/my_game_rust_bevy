@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use crate::{
-    collision::Collider, damage::Damage, health::Health, movement::*, player::Player,
-    schedule::InGameSet,
+    asset_loader::ImageAssets, collision::Collider, damage::Damage, health::Health, movement::*,
+    player::Player, schedule::InGameSet,
 };
 
 const SPAWN_TIME_SECONDS: f32 = 1.0;
@@ -24,6 +24,11 @@ pub struct SpawnTimer {
     timer: Timer,
 }
 
+#[derive(Resource, Debug)]
+pub struct CountEnemy {
+    pub count: u32,
+}
+
 pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
@@ -31,20 +36,28 @@ impl Plugin for EnemyPlugin {
         app.insert_resource(SpawnTimer {
             timer: Timer::from_seconds(SPAWN_TIME_SECONDS, TimerMode::Repeating),
         })
+        .insert_resource(CountEnemy { count: 0 })
         .add_systems(
             Update,
             (spawn_enemy, movement_enemy).in_set(InGameSet::EntityUpdates),
-        );
+        )
+        // .add_event::<OnAdd>()
+        ;
     }
 }
 
 fn spawn_enemy(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut spawn_timer: ResMut<SpawnTimer>,
     player: Query<&Transform, With<Player>>,
     time: Res<Time>,
+    mut count_enemy: ResMut<CountEnemy>,
+    image_assets: Res<ImageAssets>,
 ) {
+    if count_enemy.count >= MAX_COUNT_ENEMY {
+        return;
+    }
+
     spawn_timer.timer.tick(time.delta());
     if !spawn_timer.timer.just_finished() {
         return;
@@ -71,7 +84,7 @@ fn spawn_enemy(
                 ..default()
             },
             transform: Transform::from_translation(translation),
-            texture: asset_server.load("skeleton-skull.png"),
+            texture: image_assets.enemy.clone(),
             ..default()
         },
         MovingObjectBundle {
@@ -83,6 +96,7 @@ fn spawn_enemy(
         Damage::new(ENEMY_GAMAGE),
         Enemy,
     ));
+    count_enemy.count += 1;
 }
 
 fn movement_enemy(

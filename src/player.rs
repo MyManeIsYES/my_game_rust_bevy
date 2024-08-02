@@ -1,8 +1,8 @@
 use crate::{
-    collision::Collider, damage::Damage, health::Health, movement::*, schedule::InGameSet,
-    state::GameState,
+    asset_loader::ImageAssets, collision::Collider, damage::Damage, health::Health, movement::*,
+    schedule::InGameSet, state::GameState,
 };
-use bevy::prelude::*;
+use bevy::{asset::VisitAssetDependencies, prelude::*};
 
 const PLAYER_MAX_SPEED: u32 = 100;
 const PLAYER_BOOST: f32 = 20000.0;
@@ -29,14 +29,14 @@ impl Plugin for PlayerPlugin {
     }
 }
 
-fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn spawn_player(mut commands: Commands, image_asset: Res<ImageAssets>) {
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
                 custom_size: Some(PLAYER_SIZE),
                 ..default()
             },
-            texture: asset_server.load("YOU.png"),
+            texture: image_asset.player_stay.clone(),
             ..default()
         },
         MovingObjectBundle {
@@ -52,12 +52,23 @@ fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 fn movement_player_control(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut Transform, &mut Velocity, &mut Acceleration), With<Player>>,
+    mut query: Query<
+        (
+            Entity,
+            &mut Transform,
+            &mut Velocity,
+            &mut Acceleration,
+            &mut Handle<Image>,
+        ),
+        With<Player>,
+    >,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    asset_server: Res<AssetServer>,
+    image_asset: Res<ImageAssets>,
 ) {
-    let Ok((entity, mut transform, mut velocity, mut acceleration)) = query.get_single_mut() else {
+    let Ok((entity, mut transform, mut velocity, mut acceleration, mut image)) =
+        query.get_single_mut()
+    else {
         return;
     };
     //contral player
@@ -102,25 +113,9 @@ fn movement_player_control(
 
     //change texture todo
     if velocity.value.x == 0.0 && velocity.value.y == 0.0 {
-        commands.entity(entity).insert(SpriteBundle {
-            sprite: Sprite {
-                custom_size: Some(PLAYER_SIZE),
-                ..default()
-            },
-            transform: *transform,
-            texture: asset_server.load("YOU.png"),
-            ..default()
-        });
+        *image = image_asset.player_stay.clone();
     } else {
-        commands.entity(entity).insert(SpriteBundle {
-            sprite: Sprite {
-                custom_size: Some(PLAYER_SIZE),
-                ..default()
-            },
-            transform: *transform,
-            texture: asset_server.load("NOU.png"),
-            ..default()
-        });
+        *image = image_asset.player_move.clone();
     }
 }
 

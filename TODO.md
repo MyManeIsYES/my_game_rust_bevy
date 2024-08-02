@@ -4,6 +4,7 @@
 ### Colision system
 
 - [x] add collision
+- [ ] fix collision
 - [ ] add collision velosity
 - [x] add Health and damage
 

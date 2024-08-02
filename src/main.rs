@@ -1,3 +1,4 @@
+mod asset_loader;
 mod background;
 mod camera;
 mod collision;
@@ -11,6 +12,7 @@ mod player;
 mod schedule;
 mod state;
 
+use asset_loader::AssetLoaderPlugin;
 use background::BackgroundPLugin;
 use bevy::prelude::*;
 use bevy_dev_tools::fps_overlay::FpsOverlayPlugin;
@@ -39,5 +41,6 @@ fn main() {
         .add_plugins(SchedulePlugin)
         .add_plugins(StatePlugin)
         .add_plugins(DespawnPlugin)
+        .add_plugins(AssetLoaderPlugin)
         .run();
 }

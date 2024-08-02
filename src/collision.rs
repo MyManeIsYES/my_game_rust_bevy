@@ -63,7 +63,7 @@ fn collision_detection(mut query: Query<(Entity, &GlobalTransform, &mut Collider
                 let distance = transform_a
                     .translation()
                     .distance(transform_b.translation());
-                if distance < collider_a.radius + collider_b.radius {
+                if distance <= collider_a.radius + collider_b.radius {
                     colliding_entities
                         .entry(entity_a)
                         .or_insert_with(Vec::new)
@@ -119,6 +119,6 @@ fn apply_collision_damage(
         };
 
         // Apply any damage that should be dealt as a result of the collision.
-        health.value -= collision_damage.value;
+        health.value -= collision_damage.amount;
     }
 }
