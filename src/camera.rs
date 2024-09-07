@@ -1,4 +1,4 @@
-use bevy::{asset::TrackAssets, prelude::*, render::render_resource::Texture};
+use bevy::prelude::*;
 
 use crate::{player::Player, schedule::InGameSet};
 
@@ -8,7 +8,7 @@ pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_camera).add_systems(
+        app.add_systems(PostStartup, spawn_camera).add_systems(
             PostUpdate,
             movement_camera_with_player.after(InGameSet::EntityUpdates),
         );

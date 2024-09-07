@@ -1,17 +1,24 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{asset::io::memory::Value, prelude::*, utils::HashMap};
 
-use crate::{damage::Damage, enemy::Enemy, health::Health, player::Player, schedule::InGameSet};
+use crate::{
+    damage::Damage, enemy::Enemy, health::Health, movement::Velocity, player::Player,
+    schedule::InGameSet,
+};
 
 #[derive(Component, Debug)]
 pub struct Collider {
     pub radius: f32,
+    pub mass: f32,
+    pub absorption_coefficient: f32,
     pub colliding_entities: Vec<Entity>,
 }
 
 impl Collider {
-    pub fn new(radius: f32) -> Self {
+    pub fn new(radius: f32, mass: f32, absorption_coefficient: f32) -> Self {
         Self {
             radius,
+            mass,
+            absorption_coefficient,
             colliding_entities: vec![],
         }
     }
@@ -44,7 +51,9 @@ impl Plugin for CollisionPlugin {
             Update,
             (
                 (handle_collisions::<Enemy>, handle_collisions::<Player>),
-                apply_collision_damage,
+                // apply_collision_damage,
+                apply_collision_fix_position,
+                // apply_collision_fix_velocity,
             )
                 .chain()
                 .in_set(InGameSet::EntityUpdates),
@@ -120,5 +129,107 @@ fn apply_collision_damage(
 
         // Apply any damage that should be dealt as a result of the collision.
         health.value -= collision_damage.amount;
+    }
+}
+
+fn apply_collision_fix_position(
+    // mut collision_event_reader: EventReader<CollisionEvent>,
+    mut query: Query<(Entity, &mut Transform, &mut Velocity, &Collider)>,
+    time: Res<Time>,
+) {
+    let mut iter = query.iter_combinations_mut();
+    while let Some(
+        [(entity_a, mut transform_a, mut velocity_a, collider_a), (entity_b, mut transform_b, mut velocity_b, collider_b)],
+    ) = iter.fetch_next()
+    {
+        if entity_a == entity_b {
+            continue;
+        }
+
+        let distance = (transform_a.translation - transform_b.translation).length();
+
+        let collision_distance = collider_b.radius + collider_a.radius - distance;
+
+        if collision_distance < 0.0 {
+            continue;
+        }
+        //fix translation
+        let a = (transform_a.translation - transform_b.translation).normalize_or_zero()
+            * (collision_distance / 2.0)
+            * (collider_b.mass / collider_a.mass);
+        let b = (transform_b.translation - transform_a.translation).normalize_or_zero()
+            * (collision_distance / 2.0)
+            * (collider_a.mass / collider_b.mass);
+
+        transform_a.translation += a;
+        transform_b.translation += b;
+
+        //fix velocity
+        //3
+
+        // let length_a = velocity_a.value.length();
+        // let length_b = velocity_b.value.length();
+
+        // let const_p = collider_a.mass * length_a + collider_b.mass * length_b;
+
+        // let new_length_a = ((const_p - collider_b.mass * length_b) / collider_a.mass)
+        //     * collider_a.absorption_coefficient;
+
+        // let new_length_b = ((const_p - collider_a.mass * length_a) / collider_b.mass)
+        //     * collider_b.absorption_coefficient;
+
+        // let b_a = transform_a.translation + velocity_a.value;
+        // velocity_a.value = ((transform_b.translation * 2.0 - a)
+        //     - (transform_b.translation * 2.0 - velocity_a.value))
+        //     .normalize_or_zero()
+        //     * new_length_a
+        //     * time.delta_seconds();
+
+        // let b = transform_b.translation + velocity_b.value;
+        // velocity_b.value = ((transform_a.translation * 2.0 - b)
+        //     - (transform_a.translation * 2.0 - velocity_b.value))
+        //     .normalize_or_zero()
+        //     * new_length_b
+        //     * time.delta_seconds();
+
+        //2
+        //         let length_a = velocity_a.value.length();
+        // let length_b = velocity_b.value.length();
+
+        // let const_p = collider_a.mass * length_a + collider_b.mass * length_b;
+
+        // let new_length_a = (const_p - collider_b.mass * length_b) / collider_a.mass
+        //     * collider_a.absorption_coefficient;
+        // let new_length_b = (const_p - collider_a.mass * length_a) / collider_b.mass
+        //     * collider_b.absorption_coefficient;
+        //2.2
+        // let angel_a_alpha: f32 = (velocity_a.value - velocity_b.value)
+        //     .angle_between(Vec3::new(1., 0., 0.))
+        //     - 1.470796327;
+
+        //2.1
+        // let angel_a = velocity_a.value.angle_between(Vec3::new(1., 0., 0.));
+        // let angel_b = velocity_b.value.angle_between(Vec3::new(1., 0., 0.));
+
+        // let angle_spec_a: f32 = angel_b - 1.470796327;
+        // let angle_spec_b: f32 = angel_a - 1.470796327;cc
+
+        //1
+        let vec_p = transform_a.translation - transform_b.translation;
+        //
+        let vec_a_x: Vec3 = vec_p.normalize_or_zero()
+            * ((velocity_a.value.x * vec_p.x + velocity_a.value.y * vec_p.y) / vec_p.length());
+        let vec_b_x: Vec3 = vec_p.normalize_or_zero()
+            * ((velocity_b.value.x * vec_p.x + velocity_b.value.y * vec_p.y) / vec_p.length());
+        //
+        let const_p = collider_a.mass * vec_a_x.length() + collider_b.mass * vec_b_x.length();
+
+        let new_length_a = (const_p - collider_b.mass * vec_b_x.length()) / collider_a.mass
+            * collider_a.absorption_coefficient;
+        let new_length_b = (const_p - collider_a.mass * vec_a_x.length()) / collider_b.mass
+            * collider_b.absorption_coefficient;
+        //
+        velocity_a.value += -(vec_a_x.normalize_or_zero() * new_length_a * 2.0);
+        velocity_b.value += -(vec_b_x.normalize_or_zero() * new_length_b * 2.0);
     }
 }

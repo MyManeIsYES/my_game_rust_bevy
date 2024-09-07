@@ -6,15 +6,17 @@ use crate::{
     player::Player, schedule::InGameSet,
 };
 
-const SPAWN_TIME_SECONDS: f32 = 1.0;
+const SPAWN_TIME_SECONDS: f32 = 0.1;
 const ENEMY_SIZE: Vec2 = Vec2::new(50.0, 50.0);
-const MAX_COUNT_ENEMY: u32 = 10;
+const MAX_COUNT_ENEMY: u32 = 100;
 const ENEMY_MAX_SPEED: u32 = 500;
 const SPAWN_RANGE: f32 = 500.0;
 const ENEMY_BOOST: f32 = 1000.0;
 const ENEMY_RADIUS: f32 = 20.0;
 const ENEMY_GAMAGE: f32 = 30.0;
 const ENEMY_HEALTH: f32 = 100.0;
+const ENEMY_MASS: f32 = 100.0;
+const ENEMY_ABSORPTION: f32 = 0.9;
 
 #[derive(Component, Debug)]
 pub struct Enemy;
@@ -90,7 +92,7 @@ fn spawn_enemy(
         MovingObjectBundle {
             velocity: Velocity::new(Vec3::default(), ENEMY_MAX_SPEED),
             acceleration: Acceleration::new(Vec3::default()),
-            collider: Collider::new(ENEMY_RADIUS),
+            collider: Collider::new(ENEMY_RADIUS, ENEMY_MASS, ENEMY_ABSORPTION),
         },
         Health::new(ENEMY_HEALTH),
         Damage::new(ENEMY_GAMAGE),

@@ -9,6 +9,7 @@ mod enemy;
 mod health;
 mod movement;
 mod player;
+mod progress_bar;
 mod schedule;
 mod state;
 
@@ -23,6 +24,7 @@ use despawn::DespawnPlugin;
 use enemy::EnemyPlugin;
 use movement::MovementPlugin;
 use player::PlayerPlugin;
+use progress_bar::ProgressBarPlugin;
 use schedule::SchedulePlugin;
 use state::StatePlugin;
 
@@ -42,5 +44,6 @@ fn main() {
         .add_plugins(StatePlugin)
         .add_plugins(DespawnPlugin)
         .add_plugins(AssetLoaderPlugin)
+        .add_plugins(ProgressBarPlugin)
         .run();
 }

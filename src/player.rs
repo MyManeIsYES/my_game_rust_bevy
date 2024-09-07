@@ -1,16 +1,21 @@
 use crate::{
     asset_loader::ImageAssets, collision::Collider, damage::Damage, health::Health, movement::*,
-    schedule::InGameSet, state::GameState,
+    progress_bar::ProgresBar, schedule::InGameSet, state::GameState,
 };
-use bevy::{asset::VisitAssetDependencies, prelude::*};
+use bevy::{
+    prelude::*,
+    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+};
 
 const PLAYER_MAX_SPEED: u32 = 100;
 const PLAYER_BOOST: f32 = 20000.0;
 const PLAYER_SIZE: Vec2 = Vec2::new(70.0, 70.0);
 const PLAYER_RESISTANCE: f32 = 0.5;
-const PLAYER_RADIUS: f32 = 20.0;
+const PLAYER_RADIUS: f32 = 17.0;
 const PLAYER_DAMAGE: f32 = 35.0;
 const PLAYER_HEALT: f32 = 1000.0;
+const PLAYER_MASS: f32 = 200.0;
+const PLAYER_ABSORPTION: f32 = 0.5;
 
 #[derive(Component, Debug)]
 pub struct Player;
@@ -29,32 +34,45 @@ impl Plugin for PlayerPlugin {
     }
 }
 
-fn spawn_player(mut commands: Commands, image_asset: Res<ImageAssets>) {
-    commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                custom_size: Some(PLAYER_SIZE),
+fn spawn_player(
+    mut commands: Commands,
+    image_asset: Res<ImageAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    commands
+        .spawn((
+            SpriteBundle {
+                sprite: Sprite {
+                    custom_size: Some(PLAYER_SIZE),
+                    ..Default::default()
+                },
+                texture: image_asset.player_stay.clone(),
+
+                transform: Transform::from_translation(Vec3::new(30.1, 0.0, 0.0)),
+
                 ..default()
             },
-            texture: image_asset.player_stay.clone(),
-            ..default()
-        },
-        MovingObjectBundle {
-            velocity: Velocity::new(Vec3::default(), PLAYER_MAX_SPEED),
-            acceleration: Acceleration::new(Vec3::default()),
-            collider: Collider::new(PLAYER_RADIUS),
-        },
-        Health::new(PLAYER_HEALT),
-        Damage::new(PLAYER_DAMAGE),
-        Player,
-    ));
+            MovingObjectBundle {
+                velocity: Velocity::new(Vec3::default(), PLAYER_MAX_SPEED),
+                acceleration: Acceleration::new(Vec3::default()),
+                collider: Collider::new(PLAYER_RADIUS, PLAYER_MASS,PLAYER_ABSORPTION),
+            },
+            Health::new(PLAYER_HEALT),
+            Damage::new(PLAYER_DAMAGE),
+            Player,
+        ))
+        // .insert(MaterialMesh2dBundle {
+        //     mesh: Mesh2dHandle(meshes.add(Rectangle::new(50.0, 10.0))),
+        //     material: materials.add(Color::rgb(1.0, 0.0, 0.0)),
+        //     ..default()
+        // })
+    ;
 }
 
 fn movement_player_control(
-    mut commands: Commands,
     mut query: Query<
         (
-            Entity,
             &mut Transform,
             &mut Velocity,
             &mut Acceleration,
@@ -66,8 +84,7 @@ fn movement_player_control(
     time: Res<Time>,
     image_asset: Res<ImageAssets>,
 ) {
-    let Ok((entity, mut transform, mut velocity, mut acceleration, mut image)) =
-        query.get_single_mut()
+    let Ok((mut transform, mut velocity, mut acceleration, mut image)) = query.get_single_mut()
     else {
         return;
     };

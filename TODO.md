@@ -4,9 +4,10 @@
 ### Colision system
 
 - [x] add collision
-- [ ] fix collision
-- [ ] add collision velosity
+- [x] add collision position
+- [ ] fix collision velosity
 - [x] add Health and damage
+- [ ] add progress bar
 
 ### Status game
 
@@ -14,7 +15,7 @@
 
 ### Max count enemy
 
-- [ ] add resours count enemy
+- [x] add resours count enemy
 - [ ] work with OnAdd and read OnAdd
 
 ### Weapon
@@ -23,4 +24,4 @@
 
 ### Srite loader
 
-- [ ] add sprite loader?
+- [x] add sprite loader
